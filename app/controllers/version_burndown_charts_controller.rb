@@ -2,31 +2,27 @@ class VersionBurndownChartsController < ApplicationController
   unloadable
   menu_item :version_burndown_charts
   before_filter :find_project, :find_versions, :find_version_issues, :find_burndown_dates, :find_version_info, :find_issues_closed_status
-  
-  def index
-    relative_url_path =
-      ActionController::Base.respond_to?(:relative_url_root) ? ActionController::Base.relative_url_root : ActionController::AbstractRequest.relative_url_root
 
+  def index
     @graph =
       open_flash_chart_object( 880, 450,
         url_for( :action => 'get_graph_data', :project_id => @project.id, :version_id => @version.id ),
-          true, "#{relative_url_path}/" )
+          true, "plugin_assets/open_flash_chart/")
   end
 
   def get_graph_data
-    
     estimated_data_array = []
     performance_data_array = []
     perfect_data_array = []
     upper_data_array = []
     lower_data_array = []
     x_labels_data = []
-    
+
     index_date = @start_date - 1
     index_estimated_hours = @estimated_hours
     index_performance_hours = @estimated_hours
     count = 1
-    
+
     while index_date <= (@version.due_date + 1)
       logger.debug("index_date #{index_date}")
 
@@ -44,7 +40,7 @@ class VersionBurndownChartsController < ApplicationController
       else
         x_labels_data << index_date.strftime("%m/%d")
       end
-      
+
       estimated_data_array << round(index_estimated_hours -= calc_estimated_hours_by_date(index_date))
       index_performance_hours = calc_performance_hours_by_date(index_date)
       performance_data_array << round(@estimated_hours - index_performance_hours)
@@ -54,7 +50,7 @@ class VersionBurndownChartsController < ApplicationController
 
       logger.debug("#{index_date} index_estimated_hours #{round(index_estimated_hours)}")
       logger.debug("#{index_date} index_performance_hours #{round(index_performance_hours)}")
-      
+
       index_date += 1
       count += 1
     end
@@ -64,6 +60,8 @@ class VersionBurndownChartsController < ApplicationController
     lower_data_array.fill {|i| round((@estimated_hours - (@estimated_hours / @sprint_range * i)) * 0.8) }
     create_graph(x_labels_data, estimated_data_array, performance_data_array, perfect_data_array, upper_data_array, lower_data_array)
   end
+
+private
 
   def create_graph(x_labels_data, estimated_data_array, performance_data_array, perfect_data_array, upper_data_array, lower_data_array)
     chart =OpenFlashChart.new
@@ -79,7 +77,7 @@ class VersionBurndownChartsController < ApplicationController
     chart.set_y_legend(y_legend)
 
     x = XAxis.new
-    x.set_range(0, @sprint_range + 1, 1)
+    x.set_range(0, @sprint_range.to_i + 1, 1)
     x.set_labels(x_labels_data)
     chart.x_axis = x
 
@@ -198,7 +196,7 @@ class VersionBurndownChartsController < ApplicationController
       flash[:error] = l(:version_burndown_charts_project_nod_found, :project_id => params[:project_id])
       render_404
       return
-    end 
+    end
   end
 
   def find_versions

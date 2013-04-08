@@ -1,11 +1,11 @@
 <% html_title "#{@version.name} - " + l(:version_burndown_charts) -%>
 <% content_for :header_tags do %>
   <%= javascript_include_tag '/plugin_assets/open_flash_chart/javascripts/swfobject.js' %>
-  <%= stylesheet_link_tag 'version_burndown_charts', :plugin => 'redmine_version_burndown_charts' %>
+  <%= stylesheet_link_tag 'version_burndown_charts', :plugin => 'redmine_version_burndown' %>
 <% end %>
 
 <% unless flash[:error] -%>
-  <%= @graph %>
+  <%= raw @graph %>
 <% end -%>
 
 <% content_for :sidebar do -%>

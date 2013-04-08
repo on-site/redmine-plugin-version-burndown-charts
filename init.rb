@@ -7,8 +7,8 @@ Redmine::Plugin.register :redmine_version_burndown do
   author_url 'http://daipresents.com/weblog/fujihalab/'
   url 'http://daipresents.com/weblog/fujihalab/archives/2010/02/redmine-version-burndown-charts-plugin-release.php '
 
-  requires_redmine :version_or_higher => '0.9.0'
-  version '0.0.5'
+  requires_redmine :version_or_higher => '2.1.0'
+  version '0.0.6'
 
   project_module :version_burndown_charts do
     permission :version_burndown_charts_view, :version_burndown_charts => :index
@@ -16,4 +16,10 @@ Redmine::Plugin.register :redmine_version_burndown do
 
   menu :project_menu, :version_burndown_charts, { :controller => 'version_burndown_charts', :action => 'index' },
   :caption => :version_burndown_charts, :after => :activity, :param => :project_id
+end
+
+# Registering opne flash charts as a plugin with Redmine makes it copy
+# the assets into the plugin_assets/open_flash_chart directory.
+Redmine::Plugin.register :open_flash_chart do
+  name 'Open Flash Charts plugin'
 end
