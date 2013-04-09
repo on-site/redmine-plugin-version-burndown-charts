@@ -245,7 +245,7 @@ private
     end
 
     @end_date = @version.due_date
-    unfinished_tickets = @version_issues.select {|x| x.done_ratio != 100.0 && x.closed_on.nil?}
+    unfinished_tickets = @version_issues.select {|x| x.done_ratio != 100.0}
     @end_date = Date.today if @end_date < Date.today && !unfinished_tickets.empty?
 
     # subtract off number of weekend days
