@@ -5,7 +5,7 @@ class VersionBurndownChartsController < ApplicationController
 
   def index
     @graph =
-      open_flash_chart_object( 880, 450,
+      open_flash_chart_object( 1080, 750,
         url_for( :action => 'get_graph_data', :project_id => @project.id, :version_id => @version.id ),
           true, "plugin_assets/open_flash_chart/")
   end
@@ -18,46 +18,45 @@ class VersionBurndownChartsController < ApplicationController
     lower_data_array = []
     x_labels_data = []
 
-    index_date = @start_date - 1
     index_estimated_hours = @estimated_hours
     index_performance_hours = @estimated_hours
-    count = 1
 
-    while index_date <= (@version.due_date + 1)
+    @days.each_with_index do |index_date, count|
       logger.debug("index_date #{index_date}")
 
       if index_date < @start_date
         # ready
         estimated_data_array << index_estimated_hours
         performance_data_array << index_performance_hours
-        index_date += 1
-        count += 1
         next
-      elsif index_date == @start_date || index_date == @version.due_date
+      elsif index_date == @start_date || index_date == @end_date
         x_labels_data << index_date.strftime("%m/%d")
-      elsif @sprint_range > 20 && count % (@sprint_range / 3).round != 0
-         x_labels_data << ""
+      elsif @days.count > 20 && count % (@days.count / 3).round != 0
+        x_labels_data << ""
       else
         x_labels_data << index_date.strftime("%m/%d")
       end
 
       estimated_data_array << round(index_estimated_hours -= calc_estimated_hours_by_date(index_date))
       index_performance_hours = calc_performance_hours_by_date(index_date)
-      performance_data_array << round(@estimated_hours - index_performance_hours)
-      perfect_data_array << 0
+      performance_data_array << round(@estimated_hours - index_performance_hours) if index_date <= Date.today
+      perfect_data_array << 9
       upper_data_array << 0
       lower_data_array << 0
 
       logger.debug("#{index_date} index_estimated_hours #{round(index_estimated_hours)}")
       logger.debug("#{index_date} index_performance_hours #{round(index_performance_hours)}")
-
-      index_date += 1
-      count += 1
     end
-
-    perfect_data_array.fill {|i| round(@estimated_hours - (@estimated_hours / @sprint_range * i)) }
-    upper_data_array.fill {|i| round((@estimated_hours - (@estimated_hours / @sprint_range * i)) * 1.2) }
-    lower_data_array.fill {|i| round((@estimated_hours - (@estimated_hours / @sprint_range * i)) * 0.8) }
+    if perfect_data_array.last != 0
+      # Add an extra day for the ideal line if the chart is going to
+      # end on a day before the chart would go to zero.
+      perfect_data_array << 0
+      upper_data_array << 0
+      lower_data_array << 0
+    end
+    perfect_data_array.fill {|i| round(@estimated_hours - (@estimated_hours / @ideal_days.count * i)) }
+    upper_data_array.fill {|i| round((@estimated_hours - (@estimated_hours / @ideal_days.count * i)) * 1.2) }
+    lower_data_array.fill {|i| round((@estimated_hours - (@estimated_hours / @ideal_days.count * i)) * 0.8) }
     create_graph(x_labels_data, estimated_data_array, performance_data_array, perfect_data_array, upper_data_array, lower_data_array)
   end
 
@@ -77,7 +76,7 @@ private
     chart.set_y_legend(y_legend)
 
     x = XAxis.new
-    x.set_range(0, @sprint_range.to_i + 1, 1)
+    x.set_range(0, @days.count, 1)
     x.set_labels(x_labels_data)
     chart.x_axis = x
 
@@ -85,10 +84,10 @@ private
     y.set_range(0, round(@estimated_hours * 1.2 + 1), (@estimated_hours / 6).round)
     chart.y_axis = y
 
-    add_line(chart, "#{l(:version_burndown_charts_upper_line)}", 1, '#dfdf3f', 4, upper_data_array)
-    add_line(chart, "#{l(:version_burndown_charts_lower_line)}", 1, '#3f3fdf', 4, lower_data_array)
+    # add_line(chart, "#{l(:version_burndown_charts_upper_line)}", 1, '#dfdf3f', 4, upper_data_array)
+    # add_line(chart, "#{l(:version_burndown_charts_lower_line)}", 1, '#3f3fdf', 4, lower_data_array)
     add_line(chart, "#{l(:version_burndown_charts_perfect_line)}", 3, '#bbbbbb', 6, perfect_data_array)
-    add_line(chart, "#{l(:version_burndown_charts_estimated_line)}", 2, '#00a497', 4, estimated_data_array)
+    # add_line(chart, "#{l(:version_burndown_charts_estimated_line)}", 2, '#00a497', 4, estimated_data_array)
     add_line(chart, "#{l(:version_burndown_charts_peformance_line)}", 3, '#bf0000', 6, performance_data_array)
 
     render :text => chart.to_s
@@ -132,7 +131,7 @@ private
       next unless is_leaf(issue)
       target_hours += calc_issue_performance_hours_by_date(target_date, issue)
     end
-    logger.debug("issues estimated hours #{target_hours} #{target_date}")
+    logger.debug("issues performance hours #{target_hours} #{target_date}")
     return target_hours
   end
 
@@ -245,11 +244,18 @@ private
       render :action => "index" and return false
     end
 
-    @sprint_range = @version.due_date - @start_date + 1
+    @end_date = @version.due_date
+    unfinished_tickets = @version_issues.select {|x| x.done_ratio != 100.0 && x.closed_on.nil?}
+    @end_date = Date.today if @end_date < Date.today && !unfinished_tickets.empty?
+
+    # subtract off number of weekend days
+    @ideal_days = (@start_date ... @version.due_date + 1).to_a.delete_if {|x| x.saturday? || x.sunday?}
+    @days = (@start_date ... @end_date + 1).to_a.delete_if {|x| x.saturday? || x.sunday?}
+    @start_date = @days.first
+    @end_date = @days.last
 
     logger.debug("@start_date #{@start_date}")
-    logger.debug("@version.due_date #{@version.due_date}")
-    logger.debug("@sprint_range = #{@sprint_range}")
+    logger.debug("@end_date #{@end_date}")
   end
 
   def find_version_info
