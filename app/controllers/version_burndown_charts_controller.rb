@@ -249,8 +249,8 @@ private
     @end_date = Date.today if @end_date < Date.today && !unfinished_tickets.empty?
 
     # subtract off number of weekend days
-    @ideal_days = (@start_date ... @version.due_date + 1).to_a.delete_if {|x| x.saturday? || x.sunday?}
-    @days = (@start_date ... @end_date + 1).to_a.delete_if {|x| x.saturday? || x.sunday?}
+    @ideal_days = (@start_date ... @version.due_date + 1).to_a.delete_if {|x| [0,6].include? x.wday}
+    @days = (@start_date ... @end_date + 1).to_a.delete_if {|x| [0,6].include? x.wday}
     @start_date = @days.first
     @end_date = @days.last
 
