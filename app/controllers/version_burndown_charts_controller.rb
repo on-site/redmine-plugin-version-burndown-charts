@@ -1,7 +1,7 @@
 class VersionBurndownChartsController < ApplicationController
   unloadable
   menu_item :version_burndown_charts
-  before_filter :find_project, :find_versions, :find_version_issues, :find_issues_closed_status, :find_burndown_dates, :find_version_info
+  before_filter :find_project, :find_versions, :find_version_issues, :find_version_info, :find_issues_closed_status, :find_burndown_dates
 
   def index
     @graph =
@@ -40,23 +40,25 @@ class VersionBurndownChartsController < ApplicationController
       estimated_data_array << round(index_estimated_hours -= calc_estimated_hours_by_date(index_date))
       index_performance_hours = calc_performance_hours_by_date(index_date)
       performance_data_array << round(@estimated_hours - index_performance_hours) if index_date <= Date.today
-      perfect_data_array << 9
-      upper_data_array << 0
-      lower_data_array << 0
+      if @ideal_days.include? index_date
+        perfect_data_array << 9
+        upper_data_array << 0
+        lower_data_array << 0
+      end
 
       logger.debug("#{index_date} index_estimated_hours #{round(index_estimated_hours)}")
       logger.debug("#{index_date} index_performance_hours #{round(index_performance_hours)}")
     end
-    if perfect_data_array.last != 0
-      # Add an extra day for the ideal line if the chart is going to
-      # end on a day before the chart would go to zero.
-      perfect_data_array << 0
-      upper_data_array << 0
-      lower_data_array << 0
-    end
+
+    # Add an extra day for the ideal line so that the ideal charts go
+    # to zero.
+    perfect_data_array << 0
+    upper_data_array << 0
+    lower_data_array << 0
     perfect_data_array.fill {|i| round(@estimated_hours - (@estimated_hours / @ideal_days.count * i)) }
     upper_data_array.fill {|i| round((@estimated_hours - (@estimated_hours / @ideal_days.count * i)) * 1.2) }
     lower_data_array.fill {|i| round((@estimated_hours - (@estimated_hours / @ideal_days.count * i)) * 0.8) }
+
     create_graph(x_labels_data, estimated_data_array, performance_data_array, perfect_data_array, upper_data_array, lower_data_array)
   end
 
@@ -239,8 +241,8 @@ private
     end
 
     @end_date = @version.due_date
-    unfinished_tickets = @version_issues.select {|x| x.done_ratio != 100.0 || !@closed_statuses.include?(x.status) }
-    @end_date = Date.today if @end_date < Date.today && !unfinished_tickets.empty?
+    unfinished_tickets = @version_issues.select {|x| x.done_ratio != 100 && !@closed_statuses.include?(x.status) }
+    @end_date = Date.today if @end_date < Date.today && @closed_pourcent != 100.0 && !unfinished_tickets.empty?
 
     # subtract off number of weekend days
     @ideal_days = (@start_date ... @version.due_date + 1).to_a.delete_if {|x| [0,6].include? x.wday}
