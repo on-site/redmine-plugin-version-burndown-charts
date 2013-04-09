@@ -1,7 +1,7 @@
 class VersionBurndownChartsController < ApplicationController
   unloadable
   menu_item :version_burndown_charts
-  before_filter :find_project, :find_versions, :find_version_issues, :find_burndown_dates, :find_version_info, :find_issues_closed_status
+  before_filter :find_project, :find_versions, :find_version_issues, :find_issues_closed_status, :find_burndown_dates, :find_version_info
 
   def index
     @graph =
@@ -146,13 +146,7 @@ private
 
     journal_details.each do |journal_detail|
       logger.debug("journal_detail id #{journal_detail.id}")
-      @closed_statuses.each do |closed_status|
-        logger.debug("closed_status id #{closed_status.id}")
-        if journal_detail.value.to_i == closed_status.id
-          logger.debug("#{target_date} id #{issue.id}, issue.estimated_hours #{issue.estimated_hours}")
-          return round(issue.estimated_hours)
-        end
-      end
+      return round(issue.estimated_hours) if @closed_statuses.include? journal_detail.value.to_i
     end
 
     journal_details_done_ratio =
@@ -245,7 +239,7 @@ private
     end
 
     @end_date = @version.due_date
-    unfinished_tickets = @version_issues.select {|x| x.done_ratio != 100.0}
+    unfinished_tickets = @version_issues.select {|x| x.done_ratio != 100.0 || !@closed_statuses.include?(x.status) }
     @end_date = Date.today if @end_date < Date.today && !unfinished_tickets.empty?
 
     # subtract off number of weekend days
@@ -270,7 +264,6 @@ private
   end
 
   def find_issues_closed_status
-    @closed_statuses = IssueStatus.find_all_by_is_closed(true)
-    logger.debug("@closed_statuses #{@closed_statuses}")
+    @closed_statuses = IssueStatus.find_all_by_is_closed(true).map(&:id)
   end
 end
