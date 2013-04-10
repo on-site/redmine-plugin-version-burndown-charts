@@ -18,8 +18,9 @@ Redmine::Plugin.register :redmine_version_burndown do
   :caption => :version_burndown_charts, :after => :activity, :param => :project_id
 end
 
-# Registering opne flash charts as a plugin with Redmine makes it copy
-# the assets into the plugin_assets/open_flash_chart directory.
+# Registering open flash charts as a plugin with Redmine makes it copy
+# the assets into the plugin_assets/open_flash_chart directory so that
+# this does not have to be done manually.
 Redmine::Plugin.register :open_flash_chart do
   name 'Open Flash Charts plugin'
 end
